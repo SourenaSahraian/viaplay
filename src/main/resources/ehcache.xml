@@ -1,0 +1,13 @@
+<ehcache xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="ehcache.xsd"
+         updateCheck="false" monitoring="autodetect"
+         dynamicConfig="true"
+
+>
+
+
+    <cache name="artistCache" maxEntriesLocalHeap="10000"
+           timeToIdleSeconds="300"
+           timeToLiveSeconds="600"
+           eternal="true" memoryStoreEvictionPolicy="FIFO"/>
+</ehcache>
