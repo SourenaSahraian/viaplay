@@ -19,7 +19,5 @@ public class Albums implements Serializable {
     private String id ;
     private String imageUri;
 
-
-
 }
 
