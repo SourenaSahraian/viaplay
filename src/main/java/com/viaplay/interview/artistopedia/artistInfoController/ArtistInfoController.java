@@ -3,6 +3,7 @@ package com.viaplay.interview.artistopedia.artistInfoController;
 import com.viaplay.interview.artistopedia.model.ArtistInfo;
 import com.viaplay.interview.artistopedia.service.ArtistInfoService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,9 +30,11 @@ public class ArtistInfoController {
      * @return
      */
     @GetMapping("/artistInfo/{mbid}")
-    public Mono<ArtistInfo> getArtistInfo(@PathVariable String mbid) {
+    public Mono<ResponseEntity<ArtistInfo>> getArtistInfo(@PathVariable String mbid) {
 
-        return artistInfoService.getArtistInfo(mbid);
+        return artistInfoService.getArtistInfo(mbid).
+                map(response -> ResponseEntity.ok(response))
+                .defaultIfEmpty(ResponseEntity.notFound().build());
 
     }
 
