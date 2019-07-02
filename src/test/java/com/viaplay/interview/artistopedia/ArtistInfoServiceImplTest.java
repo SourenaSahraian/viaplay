@@ -63,8 +63,8 @@ public class ArtistInfoServiceImplTest {
         Mono<DiscogsResponse> discogsResponseMono = Mono.just(DiscogsResponse.builder().profile("Some Description").build());
 
         when(config.getBaseMusicBrainzUrl()).thenReturn(MUSIC_BASE_URI);
-        when(config.getBaseCoversUrl()).thenReturn(MUSIC_COVERS_BASE_URI);
-        when(config.getDiscogsUrl()).thenReturn(MUSIC_BASE_DISCOGZ_URI);
+        when(config.getCovers().getBaseUrl()).thenReturn(MUSIC_COVERS_BASE_URI);
+        when(config.getDiscogs().getBaseUrl()).thenReturn(MUSIC_BASE_DISCOGZ_URI);
 
         when((Mono<MusicBrainsResponse>) clientRequestHandlerMock.executeRequestMono(MUSIC_BRAINS_TEST_REQUEST_URI, MusicBrainsResponse.class))
                 .thenReturn(musicResponseMono);

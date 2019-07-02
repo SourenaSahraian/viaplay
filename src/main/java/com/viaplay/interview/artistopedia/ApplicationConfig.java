@@ -4,6 +4,7 @@ import com.viaplay.interview.artistopedia.common.ApiLogHandler;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
@@ -33,24 +34,40 @@ public class ApplicationConfig {
     @NotBlank
     private String baseMusicBrainzUrl;
 
-
-    @NotBlank
-    private String baseCoversUrl;
-
-    @NotBlank
-    private String discogsUrl;
-
     @NotNull
     private Integer cacheExpirationTime;
 
     @NotNull
     private Long cacheMaxSizeElements;
 
-    @NotBlank
-    private String coversFallbackErrorMessage;
+    @NotNull
+    private Discogs discogs;
 
-    @NotBlank
-    private String discogzFallbackErrorMessage;
+    @NotNull
+    private Covers covers;
+
+    @Data
+    public static class Covers{
+
+        @NotBlank
+        private String baseUrl;
+
+        @NotBlank
+        private String fallbackErrorMessage;
+    }
+
+
+    @Data
+    public static class Discogs{
+
+        @NotBlank
+        private String baseUrl;
+
+        @NotBlank
+        private String fallbackErrorMessage;
+
+
+    }
 
     /** @Bean
     public CacheManager cacheManager(){

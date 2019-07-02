@@ -80,7 +80,7 @@ public class ArtistInfoServiceImpl implements ArtistInfoService {
 
                 //2.call and handler for each image
                 Mono<CoverResponse> coverResponseMono = (Mono<CoverResponse>)
-                        clientRequestHandler.executeRequestMono(config.getBaseCoversUrl() + album.getId(), CoverResponse.class);
+                        clientRequestHandler.executeRequestMono(config.getCovers().getBaseUrl() + album.getId(), CoverResponse.class);
 
                 return coverResponseMono
                         .onErrorResume(e -> Mono.just(CoverResponse.builder().
@@ -111,7 +111,7 @@ public class ArtistInfoServiceImpl implements ArtistInfoService {
     }
 
     private Mono<ArtistInfo> fallBackOnUnsuccessDescription(ArtistInfo artistInfo){
-        artistInfo.setDescription(config.getDiscogzFallbackErrorMessage());
+        artistInfo.setDescription(config.getDiscogs().getFallbackErrorMessage());
         return Mono.just(artistInfo);
 
     }
@@ -119,7 +119,7 @@ public class ArtistInfoServiceImpl implements ArtistInfoService {
     private  List<CoverImageTypes> initNoCoverFound(){
 
         List<CoverImageTypes> coverImageTypes = new ArrayList<>();
-        coverImageTypes.add(CoverImageTypes.builder().image(config.getCoversFallbackErrorMessage()).build());
+        coverImageTypes.add(CoverImageTypes.builder().image(config.getCovers().getFallbackErrorMessage()).build());
         return coverImageTypes;
     }
 
@@ -149,7 +149,7 @@ public class ArtistInfoServiceImpl implements ArtistInfoService {
         }
         //I assume any of the potential multiple discogz objects can provide the profile info
 
-        return Optional.ofNullable(config.getDiscogsUrl() + "/" + extractIdFromUri(discogs.get(0).getUrl().getResource()));
+        return Optional.ofNullable(config.getDiscogs().getBaseUrl() + "/" + extractIdFromUri(discogs.get(0).getUrl().getResource()));
     }
 
     private String getMusicBrainsRequestUri(String mbid) {

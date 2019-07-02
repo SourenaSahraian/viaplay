@@ -1,10 +1,12 @@
 artistopedia:
   base-music-brainz-url: "http://musicbrainz.org/ws/2/artist/"
-  discogs-url: "https://api.discogs.com/artists"
-  covers-fallback-error-message: "No image could be found for this album"
-  discogz-fallback-error-message: "No description could be found for this Artist"
-
-  base-covers-url: "http://coverartarchive.org/release-group/"
-
   cache-expiration-time: 10
   cache-max-size-elements: 1000
+
+  covers:
+    base-url: "http://coverartarchive.org/release-group/"
+    fallback-error-message: "No image could be found for this album"
+
+  discogs:
+    base-url: "https://api.discogs.com/artists"
+    fallback-error-message: "No description could be found for this Artist"
