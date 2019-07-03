@@ -27,17 +27,23 @@ import java.util.stream.Collectors;
 @Service
 public class ArtistInfoServiceImpl implements ArtistInfoService {
 
+    public static final String DISCOGS = "discogs";
+
     @Autowired
     private ClientRequestHandler clientRequestHandler;
 
     @Autowired
     private ApplicationConfig config;
 
-    AsyncLoadingCache<String, ArtistInfo> cache =  null;
+    AsyncLoadingCache<String, ArtistInfo> cache = null;
+
+    private static boolean hasDiscogsRelation(Relations relation) {
+        return relation.getType() != null && relation.getType().equalsIgnoreCase(DISCOGS);
+    }
 
     @PostConstruct
-    public void setup(){
-       cache = Caffeine.newBuilder()
+    public void setup() {
+        cache = Caffeine.newBuilder()
                 .expireAfterWrite(config.getCacheExpirationTime(), TimeUnit.MINUTES)
                 .maximumSize(config.getCacheMaxSizeElements())
                 // Build with a asynchronous computation that returns a future
@@ -47,13 +53,13 @@ public class ArtistInfoServiceImpl implements ArtistInfoService {
     }
 
     @Override
-    public Mono<ArtistInfo> getArtistInfo(String key){
-    // Lookup and asynchronously compute an entry if absent
+    public Mono<ArtistInfo> getArtistInfo(String key) {
+        // Lookup and asynchronously compute an entry if absent
         return Mono.fromFuture(cache.get(key));
 
     }
 
-   // @Cacheable(value = "artistCache", key = "#mbid")
+    // @Cacheable(value = "artistCache", key = "#mbid")
     public Mono<ArtistInfo> getArtistAsync(String mbid) {
 
         Mono<MusicBrainsResponse> musicBrainsResponse =
@@ -76,12 +82,17 @@ public class ArtistInfoServiceImpl implements ArtistInfoService {
             artInfo.setMbid(mbid);
             artInfo.setAlbums(albums);
 
-            Mono<ArtistInfo> coverImagesMono = Flux.merge(albums.stream().map(album -> {
+            //this call is independent of covers - fire away
+            Mono<DiscogsResponse> discogsResponseMono = (Mono<DiscogsResponse>)
+                    clientRequestHandler.executeRequestMono(getDiscogzRequestUri(musicBrainsResp).get(), DiscogsResponse.class);
 
-                //2.call and handler for each image
+            Mono<ArtistInfo> coverImagesMono = Flux.merge(albums.stream().map(album -> {
+                //GET covers - fire away
                 Mono<CoverResponse> coverResponseMono = (Mono<CoverResponse>)
                         clientRequestHandler.executeRequestMono(config.getCovers().getBaseUrl() + album.getId(), CoverResponse.class);
 
+                //2.call and handler for each image
+                //shortcut- if multiple images, pick the first one
                 return coverResponseMono
                         .onErrorResume(e -> Mono.just(CoverResponse.builder().
                                 images(initNoCoverFound()).build())).retry(1)
@@ -91,18 +102,12 @@ public class ArtistInfoServiceImpl implements ArtistInfoService {
                 artInfo.getAlbums().add(album);
             }).then(Mono.just(artInfo));
 
-            if (!getDiscogzRequestUri(musicBrainsResp).isPresent()) {
-                //partial response -don't want to tie the completion of covers to discos , if no discogz info can be found
-                return coverImagesMono.flatMap(e -> fallBackOnUnsuccessDescription(artInfo));
-            }
-
-            Mono<DiscogsResponse> discogsResponseMono = (Mono<DiscogsResponse>) clientRequestHandler.executeRequestMono(getDiscogzRequestUri(musicBrainsResp).get(), DiscogsResponse.class);
             Mono<ArtistInfo> discoMono = discogsResponseMono
                     .map(discogsResponse -> buildArtistInfo(discogsResponse.getProfile(), artInfo))
                     .onErrorResume(e -> fallBackOnUnsuccessDescription(artInfo));
 
             return Mono.zip(coverImagesMono, discoMono, (covers, profileInfo) -> {
-                //both futures are resolved at this point
+                //both futures are resolved at this point- could return either one
                 return covers;
             });
 
@@ -110,13 +115,13 @@ public class ArtistInfoServiceImpl implements ArtistInfoService {
 
     }
 
-    private Mono<ArtistInfo> fallBackOnUnsuccessDescription(ArtistInfo artistInfo){
+    private Mono<ArtistInfo> fallBackOnUnsuccessDescription(ArtistInfo artistInfo) {
         artistInfo.setDescription(config.getDiscogs().getFallbackErrorMessage());
         return Mono.just(artistInfo);
 
     }
 
-    private  List<CoverImageTypes> initNoCoverFound(){
+    private List<CoverImageTypes> initNoCoverFound() {
 
         List<CoverImageTypes> coverImageTypes = new ArrayList<>();
         coverImageTypes.add(CoverImageTypes.builder().image(config.getCovers().getFallbackErrorMessage()).build());
@@ -143,7 +148,7 @@ public class ArtistInfoServiceImpl implements ArtistInfoService {
     private Optional<String> getDiscogzRequestUri(MusicBrainsResponse musicBrainsResponse) {
 
         List<Relations> discogs = musicBrainsResponse.getRelations().stream().
-                filter(relation -> relation.getType() != null && relation.getType().equalsIgnoreCase("discogs")).collect(Collectors.toList());
+                filter(ArtistInfoServiceImpl::hasDiscogsRelation).collect(Collectors.toList());
         if (CollectionUtils.isEmpty(discogs)) {
             return Optional.empty();
         }
