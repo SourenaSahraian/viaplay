@@ -16,8 +16,7 @@ public class ClientRequestHandler {
     private WebClient.Builder webClientBuilder;
 
     public Mono<?> executeRequestMono(String uriPath, Class<?> clazz) {
-
-        System.out.println("uriPath" + uriPath + " :clazz:" + clazz);
+        
         return  webClientBuilder.build().get().uri(uriPath).
                 retrieve().
                 onStatus(HttpStatus::is4xxClientError, clientResponse -> Mono.error(new RestException(ServiceException.NOT_FOUND))).
