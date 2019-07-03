@@ -86,6 +86,11 @@ public class ArtistInfoServiceImpl implements ArtistInfoService {
             Mono<DiscogsResponse> discogsResponseMono = (Mono<DiscogsResponse>)
                     clientRequestHandler.executeRequestMono(getDiscogzRequestUri(musicBrainsResp).get(), DiscogsResponse.class);
 
+            Mono<ArtistInfo> discoMono = discogsResponseMono
+                    .map(discogsResponse -> buildArtistInfo(discogsResponse.getProfile(), artInfo))
+                    .onErrorResume(e -> fallBackOnUnsuccessDescription(artInfo));
+
+
             Mono<ArtistInfo> coverImagesMono = Flux.merge(albums.stream().map(album -> {
                 //GET covers - fire away
                 Mono<CoverResponse> coverResponseMono = (Mono<CoverResponse>)
@@ -96,15 +101,10 @@ public class ArtistInfoServiceImpl implements ArtistInfoService {
                 return coverResponseMono
                         .onErrorResume(e -> Mono.just(CoverResponse.builder().
                                 images(initNoCoverFound()).build())).retry(1)
-                        .map(coverResponse -> extractCoverImages(coverResponse.getImages().get(0).getImage(), album));
+                        .map(coverResponse -> extractCoverImages(coverResponse.getImages().get(0).getImage(), album,artInfo));
 
-            }).collect(Collectors.toList())).doOnNext(album -> {
-                artInfo.getAlbums().add(album);
-            }).then(Mono.just(artInfo));
+            }).collect(Collectors.toList())).then(Mono.just(artInfo));
 
-            Mono<ArtistInfo> discoMono = discogsResponseMono
-                    .map(discogsResponse -> buildArtistInfo(discogsResponse.getProfile(), artInfo))
-                    .onErrorResume(e -> fallBackOnUnsuccessDescription(artInfo));
 
             return Mono.zip(coverImagesMono, discoMono, (covers, profileInfo) -> {
                 //both futures are resolved at this point- could return either one
@@ -139,9 +139,10 @@ public class ArtistInfoServiceImpl implements ArtistInfoService {
         return artistInfo;
     }
 
-    private Albums extractCoverImages(String image, Albums album) {
+    private Albums extractCoverImages(String image, Albums album, ArtistInfo artistInfo) {
 
         album.setImageUri(image);
+        artistInfo.getAlbums().add(album);
         return album;
     }
 
