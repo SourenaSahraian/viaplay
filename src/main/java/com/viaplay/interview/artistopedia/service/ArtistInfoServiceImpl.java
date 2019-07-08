@@ -43,6 +43,7 @@ public class ArtistInfoServiceImpl implements ArtistInfoService {
 
     @PostConstruct
     public void setup() {
+        //https://github.com/ben-manes/caffeine/wiki/Population
         cache = Caffeine.newBuilder()
                 .expireAfterWrite(config.getCacheExpirationTime(), TimeUnit.MINUTES)
                 .maximumSize(config.getCacheMaxSizeElements())
@@ -83,12 +84,8 @@ public class ArtistInfoServiceImpl implements ArtistInfoService {
             artInfo.setAlbums(albums);
 
             //this call is independent of covers - fire away
-            Mono<DiscogsResponse> discogsResponseMono = (Mono<DiscogsResponse>)
-                    clientRequestHandler.executeRequestMono(getDiscogzRequestUri(musicBrainsResp).get(), DiscogsResponse.class);
 
-            Mono<ArtistInfo> discoMono = discogsResponseMono
-                    .map(discogsResponse -> buildArtistInfo(discogsResponse.getProfile(), artInfo))
-                    .onErrorResume(e -> fallBackOnUnsuccessDescription(artInfo));
+            Mono<ArtistInfo> discogzMono = getArtistDescription(artInfo, musicBrainsResp);
 
 
             Mono<ArtistInfo> coverImagesMono = Flux.merge(albums.stream().map(album -> {
@@ -100,19 +97,38 @@ public class ArtistInfoServiceImpl implements ArtistInfoService {
                 //shortcut- if multiple images, pick the first one
                 return coverResponseMono
                         .onErrorResume(e -> Mono.just(CoverResponse.builder().
-                                images(initNoCoverFound()).build())).retry(1)
-                        .map(coverResponse -> extractCoverImages(coverResponse.getImages().get(0).getImage(), album,artInfo));
+                                images(initNoCoverFound()).build()))
+                        .map(coverResponse -> extractCoverImages(coverResponse.getImages().get(0).getImage(), album, artInfo));
 
             }).collect(Collectors.toList())).then(Mono.just(artInfo));
 
 
-            return Mono.zip(coverImagesMono, discoMono, (covers, profileInfo) -> {
+            return Mono.zip(coverImagesMono, discogzMono, (covers, profileInfo) -> {
                 //both futures are resolved at this point- could return either one
                 return covers;
             });
 
         });
 
+    }
+
+    private Mono<ArtistInfo> getArtistDescription(ArtistInfo artInfo, MusicBrainsResponse musicBrainsResp) {
+
+        Optional<String> requestUri = getDiscogzRequestUri(musicBrainsResp);
+
+        if (requestUri.isPresent()) {
+
+            Mono<DiscogsResponse> discogsResponseMono = (Mono<DiscogsResponse>)
+                    clientRequestHandler.executeRequestMono(requestUri.get(), DiscogsResponse.class);
+
+            //could alternatively call another API onError to fetch the descrption
+            return (Mono<ArtistInfo>) discogsResponseMono
+                    .map(discogsResponse -> buildArtistInfo(discogsResponse.getProfile(), artInfo))
+                    .onErrorResume(e -> fallBackOnUnsuccessDescription(artInfo));
+        } else {
+            //if the request cannot be made , return immediately
+            return fallBackOnUnsuccessDescription(artInfo);
+        }
     }
 
     private Mono<ArtistInfo> fallBackOnUnsuccessDescription(ArtistInfo artistInfo) {

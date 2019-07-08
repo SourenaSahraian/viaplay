@@ -15,15 +15,22 @@ public class ClientRequestHandler {
     @Autowired
     private WebClient.Builder webClientBuilder;
 
+
+
     public Mono<?> executeRequestMono(String uriPath, Class<?> clazz) {
+
+        return executeRequestMono(uriPath,clazz,  1);
+    }
+
+
+    public Mono<?> executeRequestMono(String uriPath, Class<?> clazz, int retry) {
 
         return  webClientBuilder.build().get().uri(uriPath).
                 retrieve().
                 onStatus(HttpStatus::is4xxClientError, clientResponse -> Mono.error(new RestException(ServiceException.NOT_FOUND))).
                 onStatus(HttpStatus::is5xxServerError, clientResponse -> Mono.error(new RestException(ServiceException.INTERNAL_SERVER_ERROR)))
-                .bodyToMono(clazz).retry(1);
+                .bodyToMono(clazz).retry(retry);
     }
-
 
 
 }
