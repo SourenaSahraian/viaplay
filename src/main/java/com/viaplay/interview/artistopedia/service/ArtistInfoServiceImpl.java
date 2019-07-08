@@ -70,7 +70,7 @@ public class ArtistInfoServiceImpl implements ArtistInfoService {
 
         ArtistInfo artInfo = artistInfoBuilder.build();
 
-        //1.async handler for the first call
+
         return musicBrainsResponse.flatMap(musicBrainsResp ->
         {
 

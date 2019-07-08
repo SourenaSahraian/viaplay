@@ -20,7 +20,7 @@ public class ClientRequestHandler {
         return  webClientBuilder.build().get().uri(uriPath).
                 retrieve().
                 onStatus(HttpStatus::is4xxClientError, clientResponse -> Mono.error(new RestException(ServiceException.NOT_FOUND))).
-                onStatus(HttpStatus::is4xxClientError, clientResponse -> Mono.error(new RestException(ServiceException.INTERNAL_SERVER_ERROR)))
+                onStatus(HttpStatus::is5xxServerError, clientResponse -> Mono.error(new RestException(ServiceException.INTERNAL_SERVER_ERROR)))
                 .bodyToMono(clazz).retry(1);
     }
 
